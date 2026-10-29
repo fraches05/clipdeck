@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QSpinB
 from PyQt6.QtCore import QThread, Qt, QUrl, pyqtSignal
 from PyQt6.QtGui import QDesktopServices
 
-from src.core.database import Database
+from src.app.services import ClipForgeService
 from src.core.paths import app_dir
 from src.ui.components.common import PageHeader, make_button, make_label, make_divider, set_role
 
@@ -98,9 +98,10 @@ class DiagnosticsThread(QThread):
 class SettingsPage(QWidget):
     proxy_changed = pyqtSignal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, service=None, parent=None):
         super().__init__(parent)
-        self.db = Database()
+        self.service = service or ClipForgeService()
+        self.db = self.service.db
         self.thread = None
         self.diag_thread = None
 

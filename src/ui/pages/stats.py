@@ -8,7 +8,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, QT
 from PyQt6.QtCore import Qt, QThread, QTimer, QUrl, pyqtSignal
 from PyQt6.QtGui import QColor, QDesktopServices, QAction
 
-from src.core.database import Database
+from src.app.services import ClipForgeService
 from src.core.paths import app_dir
 from src.core.stats_store import StatsStore
 from src.ui.components.common import PageHeader, make_button, make_label, set_role
@@ -89,9 +89,10 @@ class StatCard(QWidget):
 
 
 class StatsPage(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, service=None, parent=None):
         super().__init__(parent)
-        self.db = Database()
+        self.service = service or ClipForgeService()
+        self.db = self.service.db
         self.store = StatsStore(self.db)
         self.thread = None
         self.errors = {}
@@ -106,6 +107,7 @@ class StatsPage(QWidget):
         self.auto.setCurrentIndex(index)
         self.auto.blockSignals(False)
         self._apply_auto()
+        self.refresh()
 
     def _build(self):
         root = QVBoxLayout(self)
@@ -351,7 +353,7 @@ class StatsPage(QWidget):
 
     def _export(self):
         selected = self.account_filter.currentData() or ALL
-        default = f"clipdeck-stats-{datetime.now().strftime('%Y-%m-%d')}.csv"
+        default = f"clipforge-stats-{datetime.now().strftime('%Y-%m-%d')}.csv"
         path, _ = QFileDialog.getSaveFileName(self, "Экспорт статистики", default, "CSV (*.csv)")
         if not path:
             return

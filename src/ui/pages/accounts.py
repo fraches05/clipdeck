@@ -5,7 +5,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidgetItem
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QAction
 
-from src.core.database import Database
+from src.app.services import ClipForgeService
 from src.core.cookie_manager import CookieManager
 from src.core.paths import app_dir
 from src.ui.components.accounts_table import create_accounts_table, COL_ID, COL_NAME, COL_TAG, COL_VIDEOS
@@ -23,9 +23,10 @@ class AccountsPage(QWidget):
     go_upload = pyqtSignal()
     accounts_changed = pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, service=None, parent=None):
         super().__init__(parent)
-        self.db = Database()
+        self.service = service or ClipForgeService()
+        self.db = self.service.db
         self.cookie_manager = CookieManager()
         self._build()
         self.refresh()
