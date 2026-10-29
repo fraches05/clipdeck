@@ -32,6 +32,10 @@ class MainWindow(QMainWindow):
         self.settings_page = SettingsPage()
         self.settings_page.proxy_changed.connect(self.sidebar.set_connection)
         self.accounts_page.go_upload.connect(lambda: self.show_page(1))
+        self.accounts_page.accounts_changed.connect(self.uploads_page.refresh)
+        self.accounts_page.accounts_changed.connect(self.stats_page.refresh)
+        self.uploads_page.accounts_changed.connect(self.accounts_page.refresh)
+        self.uploads_page.accounts_changed.connect(self.stats_page.refresh)
 
         for page in (self.accounts_page, self.uploads_page, self.stats_page, self.settings_page):
             self.pages.addWidget(page)

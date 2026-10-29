@@ -5,21 +5,26 @@
 ## Возможности
 
 **Аккаунты**
-- Вход через браузер или по кукам (`sessionid`, `tt-target-idc`).
-- Группы по тегам, массовая смена тега и удаление.
+- Вход через браузер (интерфейс не замирает, вход можно отменить) или по кукам (`sessionid`, `tt-target-idc`).
+- Массовый импорт списка: вставьте строки `логин  sessionid  tt-target-idc` — порядок полей и разделитель любые, данные из Excel тоже подходят.
+- Группы по тегам, массовая смена тега и удаление, поиск по аккаунтам и фильтр по тегу.
 
 **Публикация**
 - Одно видео на все аккаунты выбранной группы.
 - Подпись и хэштеги в одном поле, счётчик до 2200 символов.
-- Журнал с причиной ошибки по каждому аккаунту, остановка между аккаунтами.
+- Пауза между аккаунтами (настраивается в «Настройках»), остановка на полпути.
+- Журнал с причиной ошибки по каждому аккаунту, кнопки «Повторить ошибки» и «Скопировать журнал».
+- История публикаций в базе: что, когда и на какой аккаунт ушло, с текстом ошибки.
 
 **Статистика**
 - Просмотры, лайки, комментарии, репосты и подписчики по аккаунтам и по каждому ролику.
 - Прирост с прошлого обновления, пометки «Растёт», «Без роста», «Нет просмотров».
 - Обновление вручную или автоматически (15, 30 минут, час), история за 30 дней.
+- Экспорт в CSV (Excel открывает без настройки кодировки).
 
-**Соединение**
-- Необязательный прокси (SOCKS5 или HTTP), проверка IP в настройках.
+**Соединение и обслуживание**
+- Необязательный прокси (SOCKS5 или HTTP) для всех запросов, проверка IP в настройках.
+- Проверка окружения: Node.js, Chrome, пакеты, файлы куков — видно, чего не хватает.
 - Все данные (база, куки, настройки) лежат локально рядом с программой.
 
 ## Требования
@@ -40,6 +45,9 @@ venv\Scripts\python main.py
 
 Скопируйте `.env.example` в `.env`, если нужен прокси.
 
+Проверка, что всё на месте: `venv\Scripts\python main.py --selftest` — результат в `selftest.log`
+(то же самое доступно в приложении: «Настройки» → «Проверить окружение»).
+
 ## Сборка exe
 
 ```bash
@@ -48,16 +56,32 @@ venv\Scripts\python -m PyInstaller --noconfirm --clean --windowed --onedir --nam
   --icon src/ui/assets/icon.ico ^
   --add-data "src/ui/assets;src/ui/assets" ^
   --add-data "tiktok_uploader/tiktok-signature;tiktok_uploader/tiktok-signature" ^
-  --collect-all imageio_ffmpeg --collect-data fake_useragent ^
-  --collect-submodules moviepy --collect-submodules undetected_chromedriver ^
-  --copy-metadata imageio --copy-metadata imageio-ffmpeg --copy-metadata moviepy ^
-  --copy-metadata proglog --copy-metadata tqdm --copy-metadata decorator ^
-  --copy-metadata numpy --copy-metadata pillow ^
+  --collect-data fake_useragent ^
+  --collect-submodules undetected_chromedriver ^
   --hidden-import tiktok_uploader.tiktok --hidden-import tiktok_uploader.stats ^
   --exclude-module playwright --exclude-module aiohttp --exclude-module tkinter main.py
 ```
 
 Рядом с `Clipdeck.exe` создаются `data/`, `CookiesDir/` и `.env`. Проверка сборки: `Clipdeck.exe --selftest` пишет `selftest.log`.
+
+## Тесты
+
+```bash
+venv\Scripts\pip install pytest
+venv\Scripts\python -m pytest tests -q
+```
+
+`tests/smoke_gui.py` поднимает интерфейс в offscreen-режиме и проверяет, что страницы собираются и база отвечает.
+
+## Если что-то не работает
+
+| Симптом | Причина и решение |
+| --- | --- |
+| «Не удалось загрузить модуль загрузки» | не хватает пакета из `requirements.txt` — установите его |
+| «Node.js не найден в PATH» | установите Node.js и перезапустите программу (или запустите из новой консоли) |
+| Статистика падает с ошибкой playwright | в `tiktok_uploader\tiktok-signature` не выполнен `npm install` / `npx playwright install chromium` |
+| Вход через браузер не открывается | Chrome не найден или устарел: проверьте в «Настройках» → «Проверить окружение» |
+| «сессия недействительна» | куки протухли, войдите в аккаунт заново |
 
 ## Ограничения
 
