@@ -5,9 +5,9 @@ from src.core.paths import app_dir
 
 
 class Database:
-    def __init__(self):
-        self.db_path = app_dir() / "data" / "tiktok.db"
-        self.db_path.parent.mkdir(exist_ok=True)
+    def __init__(self, db_path=None):
+        self.db_path = Path(db_path) if db_path else app_dir() / "data" / "tiktok.db"
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.lock = Lock()
         self._init_db()
 

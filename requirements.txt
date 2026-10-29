@@ -5,6 +5,9 @@ requests_auth_aws_sigv4>=1.0.0
 python-dotenv>=1.0.0
 undetected-chromedriver>=3.5.0
 fake_useragent>=1.4.0
+# undetected-chromedriver импортирует distutils, которого нет в Python 3.12+;
+# setuptools подставляет его совместимую копию.
+setuptools>=68
 
 # Необязательное: нужно только утилите tiktok_uploader/Video.py
 # (кроп и скачивание с YouTube), сам интерфейс без них работает.

@@ -286,6 +286,8 @@ class AccountsPage(QWidget):
                 show_warning(self, "Вход отменён", "Браузер был закрыт до завершения входа.")
             else:
                 show_error(self, "Ошибка входа", message)
+        elif dialog.cancelled_by_user:
+            show_info(self, "Вход отменён", f"Аккаунт «{username}» не добавлен.")
 
     def _changed(self):
         self.refresh()
