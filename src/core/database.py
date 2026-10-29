@@ -1,15 +1,38 @@
+import shutil
 import sqlite3
+from datetime import datetime
 from pathlib import Path
 from threading import Lock
 from src.core.paths import app_dir
 
 
 class Database:
+    SCHEMA_VERSION = 1
+
     def __init__(self, db_path=None):
         self.db_path = Path(db_path) if db_path else app_dir() / "data" / "tiktok.db"
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.lock = Lock()
+        self._migration_backup = None
         self._init_db()
+
+    def schema_version(self) -> int:
+        with self.lock:
+            conn = self._get_connection()
+            version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+            conn.close()
+            return version
+
+    def backup_before_migration(self):
+        return self._migration_backup
+
+    def _backup_existing_database(self):
+        if not self.db_path.exists() or self.db_path.stat().st_size == 0:
+            return None
+        stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
+        backup = self.db_path.with_name(f"{self.db_path.stem}.before-migration-{stamp}{self.db_path.suffix}.bak")
+        shutil.copy2(self.db_path, backup)
+        return backup
 
     def _get_connection(self):
         # WAL + timeout: страницы статистики и загрузки пишут из разных потоков.
@@ -20,6 +43,9 @@ class Database:
         return conn
 
     def _init_db(self):
+        existing = self.db_path.exists() and self.db_path.stat().st_size > 0
+        if existing:
+            self._migration_backup = self._backup_existing_database()
         with self.lock:
             conn = self._get_connection()
             cursor = conn.cursor()
@@ -103,9 +129,28 @@ class Database:
                 )
             """)
 
+            self._ensure_columns(cursor, "accounts", {
+                "cookies": "TEXT", "proxy_id": "INTEGER", "tag": "TEXT DEFAULT '---'",
+                "status": "TEXT DEFAULT 'active'", "videos_uploaded": "INTEGER DEFAULT 0",
+                "added_date": "TIMESTAMP",
+            })
+            self._ensure_columns(cursor, "proxies", {
+                "login": "TEXT", "password": "TEXT", "status": "TEXT DEFAULT 'alive'",
+                "response_time": "REAL", "tag": "TEXT DEFAULT '---'", "country": "TEXT DEFAULT 'UN'",
+                "created_at": "TIMESTAMP",
+            })
+            self._ensure_columns(cursor, "videos", {
+                "title": "TEXT", "description": "TEXT", "status": "TEXT DEFAULT 'pending'",
+                "account_id": "INTEGER", "uploaded_date": "TIMESTAMP", "added_date": "TIMESTAMP",
+            })
+            self._ensure_columns(cursor, "upload_log", {
+                "account_id": "INTEGER", "video_path": "TEXT", "caption": "TEXT",
+                "status": "TEXT", "error": "TEXT", "created_at": "TIMESTAMP",
+            })
             cursor.execute("CREATE INDEX IF NOT EXISTS ix_accounts_tag ON accounts (tag, status)")
             cursor.execute("CREATE INDEX IF NOT EXISTS ix_upload_log_created ON upload_log (created_at)")
             cursor.execute("CREATE INDEX IF NOT EXISTS ix_videos_added ON videos (added_date)")
+            cursor.execute(f"PRAGMA user_version = {self.SCHEMA_VERSION}")
 
             default_settings = {
                 "show_splash": True,
@@ -120,6 +165,13 @@ class Database:
 
             conn.commit()
             conn.close()
+
+    @staticmethod
+    def _ensure_columns(cursor, table, columns):
+        existing = {row[1] for row in cursor.execute(f"PRAGMA table_info({table})")}
+        for name, definition in columns.items():
+            if name not in existing:
+                cursor.execute(f"ALTER TABLE {table} ADD COLUMN {name} {definition}")
 
     def get(self, key, default=None):
         with self.lock:
