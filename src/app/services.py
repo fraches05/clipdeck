@@ -3,7 +3,6 @@
 import os
 import shutil
 import subprocess
-from dataclasses import replace
 from pathlib import Path
 
 from src.app.contracts import (
@@ -11,6 +10,7 @@ from src.app.contracts import (
     ImportSummary,
     UploadOutcome,
     UploadRequest,
+    VideoValidation,
 )
 from src.core.account_import import parse_accounts
 from src.core.database import Database
@@ -18,6 +18,20 @@ from src.core.paths import app_dir
 
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".m4v", ".webm")
 MAX_VIDEO_BYTES = 4 * 1024 ** 3
+
+
+def validate_video_file(path: str) -> VideoValidation:
+    video = Path(path)
+    if not video.is_file():
+        return VideoValidation(False, "missing", "video file not found")
+    if video.suffix.lower() not in VIDEO_EXTENSIONS:
+        return VideoValidation(False, "unsupported", "unsupported video format")
+    size = video.stat().st_size
+    if size == 0:
+        return VideoValidation(False, "empty", "video file is empty")
+    if size > MAX_VIDEO_BYTES:
+        return VideoValidation(False, "too_large", "video file exceeds 4 GB", size)
+    return VideoValidation(True, "ok", "", size)
 
 
 class ClipForgeService:
@@ -47,15 +61,9 @@ class ClipForgeService:
         return ImportSummary(added, updated, tuple(errors))
 
     def prepare_upload(self, video_path: str, caption: str, tag: str) -> UploadRequest:
-        path = Path(video_path)
-        if not path.is_file():
-            raise ValueError("video file not found")
-        if path.suffix.lower() not in VIDEO_EXTENSIONS:
-            raise ValueError("unsupported video format")
-        if path.stat().st_size == 0:
-            raise ValueError("video file is empty")
-        if path.stat().st_size > MAX_VIDEO_BYTES:
-            raise ValueError("video file exceeds 4 GB")
+        validation = validate_video_file(video_path)
+        if not validation.valid:
+            raise ValueError(validation.detail)
         clean_caption = caption.strip()
         if not clean_caption:
             raise ValueError("caption is required")
@@ -65,7 +73,7 @@ class ClipForgeService:
         usernames = tuple(self.db.get_accounts_by_tag(clean_tag))
         if not usernames:
             raise ValueError("group has no active accounts")
-        return UploadRequest(str(path), clean_caption, clean_tag, usernames)
+        return UploadRequest(str(video_path), clean_caption, clean_tag, usernames)
 
     def record_upload(self, outcome: UploadOutcome) -> None:
         self.db.log_upload(

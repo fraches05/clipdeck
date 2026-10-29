@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QTableWidget, QT
                              QAbstractItemView, QHeaderView, QLabel)
 from PyQt6.QtCore import Qt
 
-from src.core.database import Database
+from src.app.services import ClipForgeService
 from src.ui.components.common import make_button, make_label, set_role
 from src.ui.dialogs.styled_dialogs import show_question
 
@@ -14,11 +14,12 @@ COLUMNS = ["Время", "Аккаунт", "Видео", "Итог", "Причи
 class UploadHistoryDialog(QDialog):
     """Журнал последних публикаций: кто, что и чем закончилось."""
 
-    def __init__(self, parent=None, db=None, limit=200):
+    def __init__(self, parent=None, db=None, limit=200, service=None):
         super().__init__(parent)
-        self.db = db or Database()
+        self.service = service or (ClipForgeService(db) if db is not None else ClipForgeService())
+        self.db = self.service.db
         self.limit = limit
-        self.setWindowTitle("История публикаций")
+        self.setWindowTitle("ClipForge · История публикаций")
         self.setMinimumSize(760, 460)
         self._build()
         self.reload()
@@ -62,11 +63,15 @@ class UploadHistoryDialog(QDialog):
         root.addLayout(actions)
 
     def reload(self):
-        rows = self.db.get_upload_log(self.limit)
+        rows = self.service.recent_uploads(self.limit)
         self.table.setRowCount(0)
         ok_count = 0
         for row in rows:
-            username, video_path, _caption, status, error, created_at = row
+            username = row.username
+            video_path = row.video_path
+            status = row.status
+            error = row.error
+            created_at = row.created_at
             index = self.table.rowCount()
             self.table.insertRow(index)
             ok = status == "ok"
@@ -97,5 +102,5 @@ class UploadHistoryDialog(QDialog):
     def _clear(self):
         if not show_question(self, "Очистить историю", "Удалить все записи журнала публикаций?"):
             return
-        self.db.clear_upload_log()
+        self.service.clear_upload_history()
         self.reload()

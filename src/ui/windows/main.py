@@ -34,7 +34,7 @@ class MainWindow(QMainWindow):
         self.pages.setObjectName("content")
         self.overview_page = OverviewPage(self.service)
         self.accounts_page = AccountsPage()
-        self.uploads_page = UploadsPage()
+        self.uploads_page = UploadsPage(self.service)
         self.stats_page = StatsPage()
         self.settings_page = SettingsPage()
         self.settings_page.proxy_changed.connect(self.sidebar.set_connection)

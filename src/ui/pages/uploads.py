@@ -7,15 +7,19 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFileDialog, QPl
                              QComboBox, QProgressBar)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
-from src.core.database import Database
+from src.app.contracts import UploadOutcome
+from src.app.services import (
+    ClipForgeService,
+    MAX_VIDEO_BYTES,
+    VIDEO_EXTENSIONS,
+    validate_video_file,
+)
 from src.core.paths import app_dir
 from src.ui.components.common import PageHeader, make_button, make_label, make_divider, set_role, plural
 from src.ui.dialogs.styled_dialogs import show_warning
 from src.ui.dialogs.upload_history import UploadHistoryDialog
 
 CAPTION_LIMIT = 2200
-VIDEO_EXTENSIONS = (".mp4", ".mov", ".m4v", ".webm")
-MAX_VIDEO_BYTES = 4 * 1024 ** 3
 PROJECT_DIR = app_dir()
 
 
@@ -112,9 +116,10 @@ class UploadThread(QThread):
 class UploadsPage(QWidget):
     accounts_changed = pyqtSignal()
 
-    def __init__(self, parent=None):
+    def __init__(self, service=None, parent=None):
         super().__init__(parent)
-        self.db = Database()
+        self.service = service or ClipForgeService()
+        self.db = self.service.db
         self.video_path = None
         self.thread = None
         self.failed = []
@@ -129,7 +134,7 @@ class UploadsPage(QWidget):
         root.setContentsMargins(40, 36, 40, 32)
         root.setSpacing(0)
 
-        self.header = PageHeader("Загрузка", "Одно видео на все аккаунты выбранной группы")
+        self.header = PageHeader("Новая публикация", "Подготовьте видео и отправьте его аккаунтам группы")
         root.addWidget(self.header)
         root.addSpacing(28)
 
@@ -137,7 +142,7 @@ class UploadsPage(QWidget):
         form.setContentsMargins(0, 0, 0, 0)
         form.setSpacing(6)
 
-        form.addWidget(make_label("Видео", "caption"))
+        form.addWidget(make_label("1 · Видео для публикации", "caption"))
         video_row = QHBoxLayout()
         video_row.setSpacing(12)
         self.video_label = make_label("Файл не выбран · перетащите видео в окно", "muted")
@@ -149,7 +154,7 @@ class UploadsPage(QWidget):
         form.addSpacing(16)
 
         caption_head = QHBoxLayout()
-        caption_head.addWidget(make_label("Подпись и хэштеги", "caption"))
+        caption_head.addWidget(make_label("2 · Подпись и хэштеги", "caption"))
         caption_head.addStretch()
         self.counter = make_label(f"0 / {CAPTION_LIMIT}", "caption")
         caption_head.addWidget(self.counter)
@@ -161,7 +166,7 @@ class UploadsPage(QWidget):
         form.addWidget(self.caption)
         form.addSpacing(16)
 
-        form.addWidget(make_label("Аккаунты", "caption"))
+        form.addWidget(make_label("3 · Группа аккаунтов", "caption"))
         self.group = QComboBox()
         self.group.currentIndexChanged.connect(self._update_state)
         form.addWidget(self.group)
@@ -244,23 +249,23 @@ class UploadsPage(QWidget):
             self._use_video(path)
 
     def _use_video(self, path):
-        if not os.path.isfile(path):
-            show_warning(self, "Файл не найден", f"Не удалось открыть файл:\n{path}")
+        validation = validate_video_file(path)
+        if not validation.valid:
+            if validation.code == "missing":
+                title, detail = "Файл не найден", f"Не удалось открыть файл:\n{path}"
+            elif validation.code == "unsupported":
+                ext = os.path.splitext(path)[1].lower()
+                title = "Формат не поддерживается"
+                detail = (f"ClipForge принимает MP4, MOV, M4V и WEBM.\nФайл «{os.path.basename(path)}» "
+                          f"в формате {ext or 'без расширения'} загрузить не получится.")
+            elif validation.code == "empty":
+                title, detail = "Пустой файл", f"Файл «{os.path.basename(path)}» весит 0 байт."
+            else:
+                title = "Файл слишком большой"
+                detail = f"Размер {validation.size / 1024 / 1024 / 1024:.2f} ГБ превышает лимит в 4 ГБ."
+            show_warning(self, title, detail)
             return
-        ext = os.path.splitext(path)[1].lower()
-        if ext not in VIDEO_EXTENSIONS:
-            show_warning(self, "Формат не поддерживается",
-                         f"TikTok принимает MP4, MOV, M4V и WEBM.\nФайл «{os.path.basename(path)}» "
-                         f"в формате {ext or 'без расширения'} загрузить не получится.")
-            return
-        size = os.path.getsize(path)
-        if size == 0:
-            show_warning(self, "Пустой файл", f"Файл «{os.path.basename(path)}» весит 0 байт.")
-            return
-        if size > MAX_VIDEO_BYTES:
-            show_warning(self, "Файл слишком большой",
-                         f"Размер {size / 1024 / 1024 / 1024:.2f} ГБ превышает лимит TikTok в 4 ГБ.")
-            return
+        size = validation.size
         self._last_status = None
         self.video_path = path
         self.video_label.setText(f"{os.path.basename(path)}   ·   {size / 1024 / 1024:.1f} МБ")
@@ -286,7 +291,7 @@ class UploadsPage(QWidget):
         event.ignore()
 
     def _show_history(self):
-        UploadHistoryDialog(self, self.db).exec()
+        UploadHistoryDialog(self, service=self.service).exec()
 
     def _on_caption(self):
         self._last_status = None
@@ -343,12 +348,13 @@ class UploadsPage(QWidget):
         if not self.video_path:
             show_warning(self, "Нет видео", "Выберите файл видео.")
             return
-        if not os.path.isfile(self.video_path):
+        validation = validate_video_file(self.video_path)
+        if not validation.valid:
             self.video_path = None
             self.video_label.setText("Файл не выбран · перетащите видео в окно")
             set_role(self.video_label, "muted")
             self._update_state()
-            show_warning(self, "Файл не найден", "Видео было перемещено или удалено. Выберите файл заново.")
+            show_warning(self, "Файл недоступен", f"{validation.detail}. Выберите файл заново.")
             return
 
         self.failed = []
@@ -399,9 +405,14 @@ class UploadsPage(QWidget):
     def _account_done(self, username, ok, error):
         if ok:
             self.db.increment_account_uploads([username])
-        self.db.log_upload(username, "ok" if ok else "error",
-                           video_path=self.video_path, caption=self.caption.toPlainText().strip(),
-                           error=error or None)
+        self.service.record_upload(
+            UploadOutcome(
+                username=username,
+                video_path=self.video_path or "",
+                status="ok" if ok else "error",
+                error=error or None,
+            )
+        )
         if not ok:
             self.failed.append(username)
         self.progress.setValue(self.progress.value() + 1)

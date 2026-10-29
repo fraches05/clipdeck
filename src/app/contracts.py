@@ -44,6 +44,14 @@ class UploadRequest:
 
 
 @dataclass(frozen=True)
+class VideoValidation:
+    valid: bool
+    code: str
+    detail: str
+    size: int = 0
+
+
+@dataclass(frozen=True)
 class DiagnosticResult:
     name: str
     status: str
