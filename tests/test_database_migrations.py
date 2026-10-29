@@ -45,6 +45,18 @@ def test_corrupt_database_reports_actionable_error_and_preserves_original(tmp_pa
     assert list(tmp_path.glob("corrupt.before-migration-*.db.bak"))
 
 
+def test_no_backup_is_created_when_schema_is_current(tmp_path):
+    path = tmp_path / "current.db"
+    first = Database(path)
+    assert first.backup_before_migration() is None
+    first.set("marker", "1")
+
+    second = Database(path)
+    assert second.backup_before_migration() is None
+    assert not list(tmp_path.glob("current.before-migration-*.db.bak"))
+    assert second.get("marker") is True
+
+
 def test_backup_is_created_for_unversioned_existing_database(tmp_path):
     path = tmp_path / "legacy.db"
     conn = sqlite3.connect(path)

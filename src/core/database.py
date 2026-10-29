@@ -34,6 +34,17 @@ class Database:
         shutil.copy2(self.db_path, backup)
         return backup
 
+    def _needs_migration(self):
+        try:
+            conn = sqlite3.connect(str(self.db_path), timeout=5)
+            try:
+                version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+            finally:
+                conn.close()
+        except sqlite3.DatabaseError:
+            return True
+        return version != self.SCHEMA_VERSION
+
     def _get_connection(self):
         # WAL + timeout: страницы статистики и загрузки пишут из разных потоков.
         conn = sqlite3.connect(str(self.db_path), timeout=30, check_same_thread=False)
@@ -44,7 +55,7 @@ class Database:
 
     def _init_db(self):
         existing = self.db_path.exists() and self.db_path.stat().st_size > 0
-        if existing:
+        if existing and self._needs_migration():
             self._migration_backup = self._backup_existing_database()
         with self.lock:
             try:
