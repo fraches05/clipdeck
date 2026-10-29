@@ -16,6 +16,7 @@ from tiktok_uploader import Config
 from tiktok_uploader.basics import eprint
 from tiktok_uploader.bot_utils import (
     assertSuccess,
+    assert_success,
     convert_tags,
     crc32,
     generate_random_string,
