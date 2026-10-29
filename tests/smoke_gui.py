@@ -18,6 +18,9 @@ db.save_account("smoke_user", "smoke.cookie", tag="smoke")
 db.set("upload_delay", 5)
 
 window = MainWindow()
+assert window.windowTitle() == "ClipForge"
+assert window.pages.currentWidget() is window.overview_page
+assert window.sidebar.ITEMS == ["Обзор", "Публикации", "Аккаунты", "Статистика", "Настройки"]
 assert window.accounts_page.table.rowCount() >= 0
 window.accounts_page.search.setText("smoke")
 window.show_page(1)
