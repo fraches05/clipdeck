@@ -26,3 +26,25 @@ class UploadRunSummary:
     failed: int
     stopped: bool
     outcomes: tuple[UploadOutcome, ...]
+
+
+@dataclass(frozen=True)
+class ImportSummary:
+    added: int
+    updated: int
+    invalid_lines: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class UploadRequest:
+    video_path: str
+    caption: str
+    tag: str
+    usernames: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class DiagnosticResult:
+    name: str
+    status: str
+    detail: str
