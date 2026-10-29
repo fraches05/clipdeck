@@ -11,8 +11,11 @@ from src.core.database import Database
 from src.core.paths import app_dir
 from src.ui.components.common import PageHeader, make_button, make_label, make_divider, set_role, plural
 from src.ui.dialogs.styled_dialogs import show_warning
+from src.ui.dialogs.upload_history import UploadHistoryDialog
 
 CAPTION_LIMIT = 2200
+VIDEO_EXTENSIONS = (".mp4", ".mov", ".m4v", ".webm")
+MAX_VIDEO_BYTES = 4 * 1024 ** 3
 PROJECT_DIR = app_dir()
 
 
@@ -117,6 +120,7 @@ class UploadsPage(QWidget):
         self.failed = []
         self.last_job = None
         self._last_status = None
+        self.setAcceptDrops(True)
         self._build()
         self.refresh()
 
@@ -136,7 +140,7 @@ class UploadsPage(QWidget):
         form.addWidget(make_label("Видео", "caption"))
         video_row = QHBoxLayout()
         video_row.setSpacing(12)
-        self.video_label = make_label("Файл не выбран", "muted")
+        self.video_label = make_label("Файл не выбран · перетащите видео в окно", "muted")
         self.btn_video = make_button("Выбрать файл")
         self.btn_video.clicked.connect(self._select_video)
         video_row.addWidget(self.video_label, 1)
@@ -203,6 +207,9 @@ class UploadsPage(QWidget):
         log_head = QHBoxLayout()
         log_head.addWidget(make_label("Журнал", "caption"))
         log_head.addStretch()
+        self.btn_history = make_button("История публикаций")
+        self.btn_history.clicked.connect(self._show_history)
+        log_head.addWidget(self.btn_history)
         self.btn_copy_log = make_button("Скопировать журнал")
         self.btn_copy_log.clicked.connect(self._copy_log)
         log_head.addWidget(self.btn_copy_log)
@@ -232,16 +239,54 @@ class UploadsPage(QWidget):
 
     def _select_video(self):
         path, _ = QFileDialog.getOpenFileName(self, "Выбрать видео", "",
-                                              "Видео (*.mp4 *.mov *.avi *.mkv);;Все файлы (*)")
+                                              "Видео (*.mp4 *.mov *.m4v *.webm);;Все файлы (*)")
         if path:
-            self._last_status = None
-            self.video_path = path
-            size_mb = os.path.getsize(path) / 1024 / 1024
-            self.video_label.setText(f"{os.path.basename(path)}   ·   {size_mb:.1f} МБ")
-            set_role(self.video_label, "")
-            self.failed = []
-            self.btn_retry.setVisible(False)
-            self._update_state()
+            self._use_video(path)
+
+    def _use_video(self, path):
+        if not os.path.isfile(path):
+            show_warning(self, "Файл не найден", f"Не удалось открыть файл:\n{path}")
+            return
+        ext = os.path.splitext(path)[1].lower()
+        if ext not in VIDEO_EXTENSIONS:
+            show_warning(self, "Формат не поддерживается",
+                         f"TikTok принимает MP4, MOV, M4V и WEBM.\nФайл «{os.path.basename(path)}» "
+                         f"в формате {ext or 'без расширения'} загрузить не получится.")
+            return
+        size = os.path.getsize(path)
+        if size == 0:
+            show_warning(self, "Пустой файл", f"Файл «{os.path.basename(path)}» весит 0 байт.")
+            return
+        if size > MAX_VIDEO_BYTES:
+            show_warning(self, "Файл слишком большой",
+                         f"Размер {size / 1024 / 1024 / 1024:.2f} ГБ превышает лимит TikTok в 4 ГБ.")
+            return
+        self._last_status = None
+        self.video_path = path
+        self.video_label.setText(f"{os.path.basename(path)}   ·   {size / 1024 / 1024:.1f} МБ")
+        set_role(self.video_label, "")
+        self.failed = []
+        self.btn_retry.setVisible(False)
+        self._update_state()
+
+    def dragEnterEvent(self, event):
+        urls = event.mimeData().urls() if event.mimeData().hasUrls() else []
+        if not self._busy() and any(url.toLocalFile().lower().endswith(VIDEO_EXTENSIONS) for url in urls):
+            event.acceptProposedAction()
+        else:
+            event.ignore()
+
+    def dropEvent(self, event):
+        for url in event.mimeData().urls():
+            path = url.toLocalFile()
+            if path.lower().endswith(VIDEO_EXTENSIONS):
+                self._use_video(path)
+                event.acceptProposedAction()
+                return
+        event.ignore()
+
+    def _show_history(self):
+        UploadHistoryDialog(self, self.db).exec()
 
     def _on_caption(self):
         self._last_status = None
@@ -297,6 +342,13 @@ class UploadsPage(QWidget):
             return
         if not self.video_path:
             show_warning(self, "Нет видео", "Выберите файл видео.")
+            return
+        if not os.path.isfile(self.video_path):
+            self.video_path = None
+            self.video_label.setText("Файл не выбран · перетащите видео в окно")
+            set_role(self.video_label, "muted")
+            self._update_state()
+            show_warning(self, "Файл не найден", "Видео было перемещено или удалено. Выберите файл заново.")
             return
 
         self.failed = []
@@ -375,7 +427,7 @@ class UploadsPage(QWidget):
             thread.deleteLater()
         if not self.failed:
             self.video_path = None
-            self.video_label.setText("Файл не выбран")
+            self.video_label.setText("Файл не выбран · перетащите видео в окно")
             set_role(self.video_label, "muted")
             self.caption.clear()
             self.last_job = None
