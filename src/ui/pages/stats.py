@@ -1,4 +1,4 @@
-import sys
+﻿import sys
 import time
 from datetime import datetime
 
@@ -113,7 +113,7 @@ class StatsPage(QWidget):
 
     def _build(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(40, 36, 40, 32)
+        root.setContentsMargins(48, 40, 48, 36)
         root.setSpacing(0)
 
         top = QHBoxLayout()

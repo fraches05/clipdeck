@@ -1,4 +1,4 @@
-import os
+﻿import os
 import shutil
 import subprocess
 
@@ -120,7 +120,7 @@ class SettingsPage(QWidget):
         self.diag_thread = None
 
         root = QVBoxLayout(self)
-        root.setContentsMargins(40, 36, 40, 32)
+        root.setContentsMargins(48, 40, 48, 36)
         root.setSpacing(0)
         root.addWidget(PageHeader("Настройки", "Соединение, публикация, папка данных"))
         root.addSpacing(28)

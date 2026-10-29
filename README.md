@@ -7,7 +7,7 @@
 Одно видео — на группу аккаунтов. Каждому аккаунту можно собрать свою версию ролика.
 Всё локально: база, куки и настройки лежат рядом с программой.
 
-[![Version](https://img.shields.io/badge/version-1.2.0-8b5cf6?style=flat-square)](../../releases/latest)
+[![Version](https://img.shields.io/badge/version-1.3.0-d9542b?style=flat-square)](../../releases/latest)
 [![Tests](https://img.shields.io/badge/tests-49%20passed-3ecf8e?style=flat-square)](#проверки)
 [![Windows](https://img.shields.io/badge/platform-Windows-1f6feb?style=flat-square)](#требования)
 [![Python](https://img.shields.io/badge/python-3.10%2B-3776ab?style=flat-square)](https://www.python.org/)

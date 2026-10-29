@@ -1,4 +1,4 @@
-import contextlib
+﻿import contextlib
 import os
 import sys
 import time
@@ -17,7 +17,15 @@ from src.app.services import (
 )
 from src.core.paths import app_dir
 from src.core.video_randomizer import RandomizerError, clear_variants, randomize_video, resolve_ffmpeg, variant_filename
-from src.ui.components.common import PageHeader, make_button, make_label, make_divider, set_role, plural
+from src.ui.components.common import (
+    PageHeader,
+    make_button,
+    make_card,
+    make_label,
+    make_section,
+    set_role,
+    plural,
+)
 from src.ui.dialogs.styled_dialogs import show_warning
 from src.ui.dialogs.upload_history import UploadHistoryDialog
 
@@ -167,16 +175,23 @@ class UploadsPage(QWidget):
 
     def _build(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(40, 36, 40, 32)
+        root.setContentsMargins(48, 40, 48, 36)
         root.setSpacing(0)
 
-        self.header = PageHeader("Новая публикация", "Подготовьте видео и отправьте его аккаунтам группы")
+        self.header = PageHeader("Новая публикация", "Подготовьте видео и отправьте его аккаунтам группы",
+                                 eyebrow="ПУБЛИКАЦИЯ")
         root.addWidget(self.header)
-        root.addSpacing(28)
+        root.addSpacing(26)
 
-        form = QVBoxLayout()
-        form.setContentsMargins(0, 0, 0, 0)
+        columns = QHBoxLayout()
+        columns.setSpacing(20)
+
+        form_card = make_card("panel")
+        form = QVBoxLayout(form_card)
+        form.setContentsMargins(24, 20, 24, 22)
         form.setSpacing(6)
+        form.addWidget(make_section("ПАРАМЕТРЫ"))
+        form.addSpacing(14)
 
         form.addWidget(make_label("1 · Видео для публикации", "caption"))
         video_row = QHBoxLayout()
@@ -187,7 +202,7 @@ class UploadsPage(QWidget):
         video_row.addWidget(self.video_label, 1)
         video_row.addWidget(self.btn_video)
         form.addLayout(video_row)
-        form.addSpacing(16)
+        form.addSpacing(18)
 
         caption_head = QHBoxLayout()
         caption_head.addWidget(make_label("2 · Подпись и хэштеги", "caption"))
@@ -196,24 +211,25 @@ class UploadsPage(QWidget):
         caption_head.addWidget(self.counter)
         form.addLayout(caption_head)
         self.caption = QPlainTextEdit()
-        self.caption.setFixedHeight(120)
+        self.caption.setFixedHeight(110)
         self.caption.setPlaceholderText("Текст под видео. Хэштеги пишите прямо здесь.")
         self.caption.textChanged.connect(self._on_caption)
         form.addWidget(self.caption)
-        form.addSpacing(16)
+        form.addSpacing(18)
 
         form.addWidget(make_label("3 · Группа аккаунтов", "caption"))
         self.group = QComboBox()
         self.group.currentIndexChanged.connect(self._update_state)
         form.addWidget(self.group)
-        form.addSpacing(10)
+        form.addSpacing(12)
 
         variant_row = QHBoxLayout()
         variant_row.setSpacing(10)
-        self.chk_variants = QCheckBox("Разные версии видео для каждого аккаунта")
+        self.chk_variants = QCheckBox("Разные версии для каждого аккаунта")
         self.chk_variants.setChecked(bool(self.db.get("randomize_variants", False)))
         self.chk_variants.toggled.connect(self._on_variants_toggled)
         variant_row.addWidget(self.chk_variants)
+        variant_row.addStretch()
         self.variant_intensity = QComboBox()
         for label, code in (("Лёгкая", "light"), ("Средняя", "medium"),
                             ("Сильная", "strong"), ("Случайная", "random")):
@@ -222,17 +238,11 @@ class UploadsPage(QWidget):
         self.variant_intensity.setCurrentIndex(max(0, self.variant_intensity.findData(saved_intensity)))
         self.variant_intensity.currentIndexChanged.connect(self._on_intensity_changed)
         variant_row.addWidget(self.variant_intensity)
-        variant_row.addStretch()
         form.addLayout(variant_row)
         hint = make_label("FFmpeg меняет контраст, яркость, шум и сжатие у копии для каждого аккаунта.", "caption")
         hint.setWordWrap(True)
         form.addWidget(hint)
-
-        form_wrap = QWidget()
-        form_wrap.setLayout(form)
-        form_wrap.setMaximumWidth(720)
-        root.addWidget(form_wrap)
-        root.addSpacing(24)
+        form.addSpacing(20)
 
         actions = QHBoxLayout()
         actions.setContentsMargins(0, 0, 0, 0)
@@ -245,43 +255,47 @@ class UploadsPage(QWidget):
         self.btn_retry = make_button("Повторить ошибки")
         self.btn_retry.clicked.connect(self._retry_failed)
         self.btn_retry.setVisible(False)
-        self.status = make_label("", "muted")
         actions.addWidget(self.btn_start)
         actions.addWidget(self.btn_stop)
         actions.addWidget(self.btn_retry)
-        actions.addSpacing(8)
-        actions.addWidget(self.status, 1)
-        actions_wrap = QWidget()
-        actions_wrap.setLayout(actions)
-        actions_wrap.setMaximumWidth(720)
-        root.addWidget(actions_wrap)
-        root.addSpacing(16)
+        actions.addStretch()
+        form.addLayout(actions)
+        form.addSpacing(10)
+        self.status = make_label("", "muted")
+        form.addWidget(self.status)
 
         self.progress = QProgressBar()
         self.progress.setRange(0, 0)
         self.progress.setTextVisible(False)
         self.progress.setVisible(False)
-        root.addWidget(self.progress)
+        form.addWidget(self.progress)
+        form.addStretch()
+        columns.addWidget(form_card, 3)
 
-        root.addSpacing(8)
-        root.addWidget(make_divider())
-        root.addSpacing(16)
+        log_card = make_card("panel")
+        log_layout = QVBoxLayout(log_card)
+        log_layout.setContentsMargins(24, 20, 24, 22)
+        log_layout.setSpacing(0)
         log_head = QHBoxLayout()
-        log_head.addWidget(make_label("Журнал", "caption"))
+        log_head.setSpacing(8)
+        log_head.addWidget(make_section("ЖУРНАЛ"))
         log_head.addStretch()
-        self.btn_history = make_button("История публикаций")
+        self.btn_history = make_button("История")
         self.btn_history.clicked.connect(self._show_history)
         log_head.addWidget(self.btn_history)
-        self.btn_copy_log = make_button("Скопировать журнал")
+        self.btn_copy_log = make_button("Копировать")
         self.btn_copy_log.clicked.connect(self._copy_log)
         log_head.addWidget(self.btn_copy_log)
-        root.addLayout(log_head)
-        root.addSpacing(6)
+        log_layout.addLayout(log_head)
+        log_layout.addSpacing(14)
         self.log = QPlainTextEdit()
         self.log.setObjectName("log")
         self.log.setReadOnly(True)
         self.log.setPlaceholderText("Здесь появится ход загрузки и причины ошибок.")
-        root.addWidget(self.log, 1)
+        log_layout.addWidget(self.log, 1)
+        columns.addWidget(log_card, 2)
+
+        root.addLayout(columns, 1)
 
     def refresh(self):
         current = self.group.currentData()

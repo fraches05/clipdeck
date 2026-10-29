@@ -76,6 +76,16 @@ def main():
         window = MainWindow(service)
         window.uploads_page.caption.setPlainText("Запуск нового ролика · #clipforge #studio")
         window.uploads_page._use_video(video)
+        window.uploads_page.log.setPlainText(
+            "[1/3] @studio.nord\n"
+            "    Готовлю уникальную версию\n"
+            "    Вариант: launch-reel-01-studio.nord.mp4 · контраст 1.032 · яркость 0.021 · шум 15 · CRF 25\n"
+            "    Опубликовано\n"
+            "[2/3] @reels.daily\n"
+            "    Готовлю уникальную версию\n"
+            "    Вариант: launch-reel-02-reels.daily.mp4 · контраст 0.978 · яркость -0.018 · шум 20 · CRF 27\n"
+            "    Опубликовано"
+        )
         window.resize(WIDTH, HEIGHT)
         window.show()
 

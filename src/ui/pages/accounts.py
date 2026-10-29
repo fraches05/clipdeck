@@ -1,4 +1,4 @@
-import pickle
+﻿import pickle
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidgetItem, QMenu, QLineEdit,
                              QComboBox, QStackedLayout)
@@ -33,7 +33,7 @@ class AccountsPage(QWidget):
 
     def _build(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(40, 36, 40, 32)
+        root.setContentsMargins(48, 40, 48, 36)
         root.setSpacing(24)
 
         top = QHBoxLayout()

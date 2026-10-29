@@ -1,8 +1,8 @@
 import os
-from PyQt6.QtWidgets import QMainWindow, QWidget, QHBoxLayout, QStackedWidget
+from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QStackedWidget
 
 from src.app.services import ClipForgeService
-from src.ui.components.sidebar import Sidebar
+from src.ui.components.topbar import TopBar
 from src.ui.pages.overview import OverviewPage
 from src.ui.pages.accounts import AccountsPage
 from src.ui.pages.uploads import UploadsPage
@@ -16,19 +16,21 @@ class MainWindow(QMainWindow):
     def __init__(self, service=None):
         super().__init__()
         self.setWindowTitle("ClipForge")
-        self.resize(1120, 720)
-        self.setMinimumSize(960, 600)
+        self.resize(1180, 780)
+        self.setMinimumSize(980, 640)
         self.service = service or ClipForgeService()
 
         central = QWidget()
         self.setCentralWidget(central)
-        layout = QHBoxLayout(central)
+        layout = QVBoxLayout(central)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
 
-        self.sidebar = Sidebar()
-        self.sidebar.page_changed.connect(self.on_page_changed)
-        layout.addWidget(self.sidebar)
+        self.topbar = TopBar()
+        self.topbar.page_changed.connect(self.on_page_changed)
+        layout.addWidget(self.topbar)
+        # Совместимость с прежним интерфейсом оболочки.
+        self.sidebar = self.topbar
 
         self.pages = QStackedWidget()
         self.pages.setObjectName("content")
@@ -37,7 +39,7 @@ class MainWindow(QMainWindow):
         self.uploads_page = UploadsPage(self.service)
         self.stats_page = StatsPage(self.service)
         self.settings_page = SettingsPage(self.service)
-        self.settings_page.proxy_changed.connect(self.sidebar.set_connection)
+        self.settings_page.proxy_changed.connect(self.topbar.set_connection)
         self.overview_page.go_upload.connect(lambda: self.show_page(self.UPLOADS))
         self.accounts_page.go_upload.connect(lambda: self.show_page(self.UPLOADS))
         self.accounts_page.accounts_changed.connect(self.uploads_page.refresh)
@@ -51,7 +53,7 @@ class MainWindow(QMainWindow):
             self.pages.addWidget(page)
         layout.addWidget(self.pages, 1)
 
-        self.sidebar.set_connection(os.environ.get("TIKTOK_PROXY", ""))
+        self.topbar.set_connection(os.environ.get("TIKTOK_PROXY", ""))
         self.show_page(self.OVERVIEW)
 
     def show_page(self, index: int):
