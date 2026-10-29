@@ -1,36 +1,63 @@
 # ClipForge
 
-ClipForge — самостоятельное Windows-приложение для публикации одного видео на группу TikTok-аккаунтов и просмотра статистики роликов. Это substantially reworked open-source fork: новая айдентика, shell-навигация, application-слой, локальные миграции базы и обновлённый пользовательский сценарий при сохранении рабочих локальных данных и интеграционного адаптера.
+<div align="center">
+
+**Публикации и статистика TikTok без лишней суеты**
+
+Одно видео — на группу аккаунтов. Каждому аккаунту можно собрать свою версию ролика.
+Всё локально: база, куки и настройки лежат рядом с программой.
+
+[![Version](https://img.shields.io/badge/version-1.2.0-8b5cf6?style=flat-square)](../../releases/latest)
+[![Tests](https://img.shields.io/badge/tests-49%20passed-3ecf8e?style=flat-square)](#проверки)
+[![Windows](https://img.shields.io/badge/platform-Windows-1f6feb?style=flat-square)](#требования)
+[![Python](https://img.shields.io/badge/python-3.10%2B-3776ab?style=flat-square)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-MIT-6b7280?style=flat-square)](LICENSE)
+
+<img src="docs/screenshots/overview.png" alt="Обзор ClipForge" width="880">
+
+</div>
+
+---
 
 ## Возможности
 
-**Обзор и аккаунты**
-- Обзор числа аккаунтов, групп, публикаций и ошибок.
-- Вход через браузер (интерфейс не замирает, вход можно отменить) или по кукам (`sessionid`, `tt-target-idc`).
-- Массовый импорт списка: вставьте строки `логин  sessionid  tt-target-idc` — порядок полей и разделитель любые, данные из Excel тоже подходят.
-- Группы по тегам, массовая смена тега и удаление, поиск по аккаунтам и фильтр по тегу.
+| | |
+| --- | --- |
+| **Аккаунты**<br>Вход через браузер или по кукам, массовый импорт списка, группы по тегам, поиск и фильтр. | **Публикации**<br>Пошаговый сценарий видео → подпись → группа, пауза между аккаунтами, остановка, повтор ошибок, журнал причин. |
+| **Уникализация**<br>Своя версия ролика для каждого аккаунта: контраст, яркость, шум и CRF по выбранной интенсивности. | **Статистика**<br>Просмотры, лайки, комментарии, репосты, подписчики, прирост с прошлого обновления, экспорт в CSV. |
+| **Соединение**<br>Необязательный прокси SOCKS5/HTTP, проверка IP, диагностика Node.js, Chrome, FFmpeg и пакетов. | **Данные**<br>SQLite рядом с программой, версия схемы и резервная копия только перед реальной миграцией. |
 
-**Публикации**
-- Пошаговый сценарий: видео → подпись → группа аккаунтов.
-- Одно видео на все аккаунты выбранной группы; пауза между аккаунтами настраивается в «Настройках».
-- Уникализация: по желанию для каждого аккаунта собирается своя версия видео — FFmpeg меняет контраст, яркость, шум и качество сжатия (лёгкая, средняя, сильная или случайная интенсивность).
-- Перетаскивание видео в окно, проверка формата, пустого файла и лимита 4 ГБ.
-- Остановка на полпути, повтор ошибок, журнал с причиной по каждому аккаунту и копирование журнала.
-- История публикаций в базе с временем, аккаунтом, видео, статусом и причиной ошибки.
+## Скриншоты
 
-**Статистика**
-- Просмотры, лайки, комментарии, репосты и подписчики по аккаунтам и роликам.
-- Прирост с прошлого обновления, пометки «Растёт», «Без роста», «Нет просмотров».
-- Обновление вручную или автоматически (15, 30 минут, час), экспорт в CSV.
+<table>
+<tr>
+<td width="50%"><img src="docs/screenshots/uploads.png" alt="Публикация"><br><sub><b>Публикация</b> — шаги, группа, уникализация</sub></td>
+<td width="50%"><img src="docs/screenshots/accounts.png" alt="Аккаунты"><br><sub><b>Аккаунты</b> — теги, поиск, массовые действия</sub></td>
+</tr>
+<tr>
+<td width="50%"><img src="docs/screenshots/stats.png" alt="Статистика"><br><sub><b>Статистика</b> — карточки, прирост, таблица роликов</sub></td>
+<td width="50%"><img src="docs/screenshots/settings.png" alt="Настройки"><br><sub><b>Настройки</b> — прокси, пауза, окружение</sub></td>
+</tr>
+</table>
 
-**Соединение и обслуживание**
-- Необязательный прокси (SOCKS5 или HTTP) для запросов, проверка IP в настройках.
-- Ленивые диагностики Node.js, Chrome, Python-пакетов и локальных cookie-файлов.
-- Все данные (база, куки, настройки) лежат локально рядом с программой; схема SQLite версионируется и резервируется перед миграцией.
+## Уникализация видео
+
+Включите «Разные версии видео для каждого аккаунта» на странице публикации и выберите интенсивность: лёгкая, средняя, сильная или случайная. Перед отправкой ClipForge вызывает FFmpeg и готовит отдельный файл: меняются контраст, яркость, шум и качество сжатия, метаданные сбрасываются.
+
+- Варианты собираются во временную папку `data/variants` и удаляются после прогона.
+- Ошибка кодирования помечает только один аккаунт — очередь продолжается.
+- Нет FFmpeg — кнопка предупредит, а не упадёт; проверка есть в self-test и «Проверить окружение».
+
+```powershell
+# FFmpeg можно положить рядом с программой
+ffmpeg\bin\ffmpeg.exe
+# или указать путь явно
+$env:CLIPFORGE_FFMPEG = "C:\tools\ffmpeg\bin\ffmpeg.exe"
+```
 
 ## Требования
 
-Windows, Python 3.10+, Google Chrome, Node.js. Для уникализации видео нужен FFmpeg (в PATH или `ffmpeg\bin\ffmpeg.exe` рядом с программой).
+Windows, Python 3.10+, Google Chrome, Node.js. Для уникализации — FFmpeg.
 
 ## Запуск из исходников
 
@@ -44,9 +71,7 @@ cd ..\..
 .venv\Scripts\python main.py
 ```
 
-Скопируйте `.env.example` в `.env`, если нужен прокси.
-
-Проверка окружения: `.venv\Scripts\python main.py --selftest` — результат в `selftest.log`. То же доступно в приложении: «Настройки» → «Проверить окружение».
+Скопируйте `.env.example` в `.env`, если нужен прокси. Проверка окружения: `.venv\Scripts\python main.py --selftest` — результат в `selftest.log`.
 
 ## Сборка exe
 
@@ -62,36 +87,39 @@ cd ..\..
   --exclude-module playwright --exclude-module aiohttp --exclude-module tkinter main.py
 ```
 
-Рядом с `ClipForge.exe` создаются `data/`, `CookiesDir/` и `.env`. Проверка сборки: `ClipForge.exe --selftest` пишет `selftest.log`.
+Или через готовый spec: `.venv\Scripts\python -m PyInstaller --noconfirm --clean ClipForge.spec`.
 
-## Тесты
+Готовая сборка — `dist\ClipForge\ClipForge.exe` вместе с `_internal`. Рядом создаются `data\`, `CookiesDir\` и `.env`. FFmpeg в архив не входит.
+
+## Проверки
 
 ```powershell
 .venv\Scripts\python -m pytest tests -q
 .venv\Scripts\python -m compileall -q src tiktok_uploader main.py
 $env:QT_QPA_PLATFORM='offscreen'; .venv\Scripts\python tests\smoke_gui.py
 $env:QT_QPA_PLATFORM='offscreen'; .venv\Scripts\python tests\shots_clipforge.py
+.venv\Scripts\python main.py --selftest
 ```
 
-## Если что-то не работает
+Скриншоты для README пересобираются так: `.venv\Scripts\python tests\shots_readme.py`.
 
-| Симптом | Причина и решение |
-| --- | --- |
-| «Не удалось загрузить модуль загрузки» | не хватает пакета из `requirements.txt` — установите его |
-| «Node.js не найден в PATH» | установите Node.js и перезапустите программу |
-| Статистика падает с ошибкой Playwright | в `tiktok_uploader\tiktok-signature` выполните `npm install` и `npx playwright install chromium` |
-| Вход через браузер не открывается | Chrome не найден или устарел: проверьте «Настройки» → «Проверить окружение» |
-| «Для уникализации видео нужен FFmpeg» | установите FFmpeg и добавьте в PATH либо положите `ffmpeg.exe` в папку `ffmpeg\bin` рядом с программой |
-| «сессия недействительна» | куки протухли, войдите в аккаунт заново |
+## Архитектура
+
+- `src/ui/` — оболочка, страницы, диалоги и визуальная система.
+- `src/app/` — контракты и `ClipForgeService`, фасад для страниц.
+- `src/core/` — база, куки, статистика, импорт и уникализация видео.
+- `tiktok_uploader/` — изолированный адаптер TikTok и Node-подпись.
+
+Подробнее — [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), релизный чек-лист — [docs/RELEASE.md](docs/RELEASE.md), сторонние компоненты — [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md).
 
 ## Ограничения
 
-- Программа работает через неофициальные запросы TikTok, поэтому обновления платформы могут временно нарушить интеграцию.
-- TikTok может блокировать публикацию на уровне аккаунта или региона.
-- Массовая публикация одного видео на много аккаунтов повышает риск ограничений. Используйте только свои аккаунты и соблюдайте правила платформы.
-- Куки аккаунтов хранятся в открытом виде в `CookiesDir/`. Не публикуйте эту папку и не передавайте её другим.
-- Реальный login/upload требует пользовательских аккаунтов и не входит в локальный smoke-тест.
+- Работа идёт через неофициальные запросы TikTok: обновления платформы могут временно ломать интеграцию.
+- TikTok может блокировать публикацию на уровне аккаунта или региона; массовая публикация повышает риск ограничений.
+- Используйте только свои аккаунты и соблюдайте правила площадки.
+- Куки хранятся в открытом виде в `CookiesDir/` — не публикуйте эту папку.
+- Реальный login и upload требуют пользовательских аккаунтов и не входят в локальные проверки.
 
 ## Лицензия и авторство
 
-MIT, см. [LICENSE](LICENSE). История переработки и сторонние компоненты описаны в [docs/THIRD_PARTY.md](docs/THIRD_PARTY.md). Архитектура — в [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), релизная проверка — в [docs/RELEASE.md](docs/RELEASE.md). ClipForge сохраняет атрибуцию [TikTokAutoUploader](https://github.com/y1ki/TikTokAutoUploader) (Y1ki) и [tiktok-signature](https://github.com/carcabot/tiktok-signature) (CarcaBot).
+MIT, см. [LICENSE](LICENSE). ClipForge is a substantially reworked open-source fork: the original MIT license and notices are preserved. Сохранены атрибуция [TikTokAutoUploader](https://github.com/y1ki/TikTokAutoUploader) (Y1ki) и [tiktok-signature](https://github.com/carcabot/tiktok-signature) (CarcaBot).

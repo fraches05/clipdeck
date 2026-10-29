@@ -38,6 +38,7 @@ class MainWindow(QMainWindow):
         self.stats_page = StatsPage(self.service)
         self.settings_page = SettingsPage(self.service)
         self.settings_page.proxy_changed.connect(self.sidebar.set_connection)
+        self.overview_page.go_upload.connect(lambda: self.show_page(self.UPLOADS))
         self.accounts_page.go_upload.connect(lambda: self.show_page(self.UPLOADS))
         self.accounts_page.accounts_changed.connect(self.uploads_page.refresh)
         self.accounts_page.accounts_changed.connect(self.stats_page.refresh)

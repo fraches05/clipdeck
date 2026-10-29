@@ -64,11 +64,13 @@ class StatsThread(QThread):
 class StatCard(QWidget):
     def __init__(self, title):
         super().__init__()
+        self.setObjectName("statCard")
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setContentsMargins(18, 14, 18, 14)
         layout.setSpacing(2)
-        self.setMinimumWidth(112)
-        layout.addWidget(make_label(title, "caption"))
+        self.setMinimumWidth(148)
+        layout.addWidget(make_label(title, "statCaption"))
         self.value = make_label("0")
         self.value.setObjectName("statValue")
         layout.addWidget(self.value)

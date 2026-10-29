@@ -34,12 +34,27 @@ def make_divider() -> QFrame:
     return line
 
 
+def make_section(text: str) -> QLabel:
+    return make_label(text, "section")
+
+
+def make_card(name: str = "panel") -> QFrame:
+    card = QFrame()
+    card.setObjectName(name)
+    return card
+
+
 class PageHeader(QWidget):
-    def __init__(self, title: str, subtitle: str = "", parent=None):
+    def __init__(self, title: str, subtitle: str = "", parent=None, eyebrow: str = ""):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
+
+        self.eyebrow = None
+        if eyebrow:
+            self.eyebrow = make_label(eyebrow, "eyebrow")
+            layout.addWidget(self.eyebrow)
 
         self.title = QLabel(title)
         self.title.setObjectName("pageTitle")

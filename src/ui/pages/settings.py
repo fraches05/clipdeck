@@ -8,7 +8,17 @@ from PyQt6.QtGui import QDesktopServices
 
 from src.app.services import ClipForgeService
 from src.core.paths import app_dir
-from src.ui.components.common import PageHeader, make_button, make_label, make_divider, set_role
+from src.core.video_randomizer import resolve_ffmpeg
+from src.ui.components.common import (
+    PageHeader,
+    make_button,
+    make_card,
+    make_label,
+    make_divider,
+    make_section,
+    set_role,
+)
+from src.ui.copy import PRODUCT_NAME, PRODUCT_VERSION
 
 ENV_PATH = app_dir() / ".env"
 KEY = "TIKTOK_PROXY"
@@ -192,12 +202,43 @@ class SettingsPage(QWidget):
         wrap = QWidget()
         wrap.setLayout(column)
         wrap.setMaximumWidth(720)
-        root.addWidget(wrap)
+
+        info = make_card("panel")
+        info.setFixedWidth(300)
+        info_layout = QVBoxLayout(info)
+        info_layout.setContentsMargins(20, 18, 20, 20)
+        info_layout.setSpacing(10)
+        info_layout.addWidget(make_section("О ПРИЛОЖЕНИИ"))
+        info_layout.addWidget(make_label(f"{PRODUCT_NAME} {PRODUCT_VERSION}"))
+        self.info_ffmpeg = make_label("", "caption")
+        self.info_ffmpeg.setWordWrap(True)
+        info_layout.addWidget(self.info_ffmpeg)
+        data_label = make_label(f"Данные: {app_dir()}", "caption")
+        data_label.setWordWrap(True)
+        info_layout.addWidget(data_label)
+        info_layout.addSpacing(4)
+        info_layout.addWidget(make_divider())
+        info_layout.addSpacing(4)
+        note_info = make_label("Локальное приложение: база, куки и настройки хранятся рядом с программой.",
+                               "caption")
+        note_info.setWordWrap(True)
+        info_layout.addWidget(note_info)
+        info_layout.addStretch()
+
+        columns = QHBoxLayout()
+        columns.setSpacing(24)
+        columns.addWidget(wrap)
+        columns.addWidget(info, 0, Qt.AlignmentFlag.AlignTop)
+        columns.addStretch()
+        root.addLayout(columns)
         root.addStretch()
 
     def refresh(self):
         self.proxy_input.setText(os.environ.get(KEY, read_proxy_from_env()))
         self.delay.setValue(int(self.db.get(DELAY_KEY, 0) or 0))
+        binary = resolve_ffmpeg()
+        self.info_ffmpeg.setText(f"FFmpeg: {binary}" if binary else "FFmpeg не найден — уникализация недоступна")
+        set_role(self.info_ffmpeg, "caption" if binary else "err")
 
     def _save(self):
         value = self.proxy_input.text().strip()
