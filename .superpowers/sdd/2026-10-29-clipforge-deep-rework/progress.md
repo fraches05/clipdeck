@@ -9,3 +9,4 @@ Task 3: complete (commit 2562e40, tests: pytest tests -q → 22 passed)
 Task 4: complete (commit af61e3b, tests: pytest tests -q → 22 passed; smoke_gui and compileall passed)
 Task 5: Ruling: Unix-only task-start/task-done helpers are not executable in this PowerShell/Windows environment; used plan Task 5 brief directly and will record command/output here — task behavior and test requirements are unchanged.
 Task 5: complete (tests: pytest tests -q → 26 passed; focused upload flow 4 passed; shots_clipforge and smoke_gui passed; compileall passed)
+Task 6: complete (tests: pytest tests -q → 29 passed; pages UX 3 passed; shots_clipforge and smoke_gui passed; compileall passed)
