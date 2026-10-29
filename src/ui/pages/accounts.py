@@ -238,25 +238,30 @@ class AccountsPage(QWidget):
         dialog = ImportAccountsDialog(self, self.db.get_account_tags())
         if dialog.exec() != ImportAccountsDialog.DialogCode.Accepted:
             return
-        added = 0
-        updated = 0
+        source = "\n".join(
+            f"{account['username']}\t{account['sessionid']}\t{account['dc_id']}"
+            for account in dialog.accounts
+        )
+        summary = self.service.import_accounts(source, default_tag=dialog.tag)
         for account in dialog.accounts:
-            existed = bool(self.db.get_account_by_username(account["username"]))
-            self._save_account(account["username"], dialog.tag, account["sessionid"], account["dc_id"], quiet=True)
-            if existed:
-                updated += 1
-            else:
-                added += 1
+            canonical = next(
+                (row[1] for row in self.db.get_accounts()
+                 if row[1] and row[1].casefold() == account["username"].casefold()),
+                account["username"],
+            )
+            self._write_cookie(canonical, account["sessionid"], account["dc_id"])
         self._changed()
         parts = []
-        if added:
-            parts.append(f"добавлено {added}")
-        if updated:
-            parts.append(f"обновлено {updated}")
+        if summary.added:
+            parts.append(f"добавлено {summary.added}")
+        if summary.updated:
+            parts.append(f"обновлено {summary.updated}")
+        if summary.invalid_lines:
+            parts.append(f"пропущено строк: {len(summary.invalid_lines)}")
         show_info(self, "Импорт завершён",
                   f"Аккаунты в теге «{dialog.tag}»: " + ", ".join(parts or ["ничего не изменилось"]) + ".")
 
-    def _save_account(self, username, tag, session_id, dc_id, quiet=False):
+    def _write_cookie(self, username, session_id, dc_id):
         cookies_dir = PROJECT_DIR / "CookiesDir"
         cookies_dir.mkdir(exist_ok=True)
         cookies = [
@@ -265,10 +270,12 @@ class AccountsPage(QWidget):
             {"name": "tt-target-idc", "value": dc_id, "domain": ".tiktok.com", "path": "/",
              "secure": True, "httpOnly": False},
         ]
-        cookie_name = f"tiktok_session-{username}.cookie"
-        with open(cookies_dir / cookie_name, "wb") as f:
+        with open(cookies_dir / f"tiktok_session-{username}.cookie", "wb") as f:
             pickle.dump(cookies, f)
-        self.db.save_account(username, cookie_name, tag=tag)
+
+    def _save_account(self, username, tag, session_id, dc_id, quiet=False):
+        self._write_cookie(username, session_id, dc_id)
+        self.db.save_account(username, f"tiktok_session-{username}.cookie", tag=tag)
         if not quiet:
             self._changed()
             show_info(self, "Готово", f"Аккаунт «{username}» добавлен с тегом «{tag}».")

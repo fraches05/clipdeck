@@ -47,9 +47,17 @@ class Database:
         if existing:
             self._migration_backup = self._backup_existing_database()
         with self.lock:
-            conn = self._get_connection()
-            cursor = conn.cursor()
-            cursor.execute("PRAGMA journal_mode = WAL")
+            try:
+                conn = self._get_connection()
+                cursor = conn.cursor()
+                cursor.execute("PRAGMA journal_mode = WAL")
+            except sqlite3.DatabaseError as error:
+                backup = self._migration_backup or self._backup_existing_database()
+                backup_name = str(backup) if backup else "не создан"
+                raise RuntimeError(
+                    f"corrupt database: {self.db_path}; backup: {backup_name}. "
+                    "Удалите или восстановите исходный файл вручную."
+                ) from error
 
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS settings (

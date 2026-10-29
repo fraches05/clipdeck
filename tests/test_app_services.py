@@ -36,6 +36,25 @@ def test_import_accounts_is_idempotent_and_reports_added_updated_invalid(tmp_pat
     assert db.get_account_by_username("main")[2] == "clips"
 
 
+def test_import_accounts_matches_existing_username_case_insensitively(tmp_path):
+    db = Database(tmp_path / "case.db")
+    db.save_account("foo", "foo.cookie", tag="old")
+    result = ClipForgeService(db).import_accounts(f"Foo\t{SID}", default_tag="clips")
+
+    assert result.added == 0
+    assert result.updated == 1
+    assert db.get_account_count() == 1
+    assert db.get_accounts()[0][1] == "foo"
+    assert db.get_accounts()[0][4] == "clips"
+
+
+def test_record_upload_preserves_caption(tmp_path):
+    db = Database(tmp_path / "caption.db")
+    ClipForgeService(db).record_upload(UploadOutcome("main", "clip.mp4", "ok", caption="#clip"))
+
+    assert db.get_upload_log(1)[0][2] == "#clip"
+
+
 def test_prepare_upload_validates_file_caption_and_group(tmp_path):
     video = tmp_path / "clip.mp4"
     video.write_bytes(b"video")

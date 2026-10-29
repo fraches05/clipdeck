@@ -28,6 +28,23 @@ def test_existing_records_survive_schema_initialization(tmp_path):
     assert db.schema_version() == db.SCHEMA_VERSION
 
 
+def test_corrupt_database_reports_actionable_error_and_preserves_original(tmp_path):
+    path = tmp_path / "corrupt.db"
+    original = b"not a sqlite database"
+    path.write_bytes(original)
+
+    try:
+        Database(path)
+    except RuntimeError as error:
+        assert "corrupt" in str(error).lower()
+        assert "backup" in str(error).lower()
+    else:
+        raise AssertionError("corrupt database must raise an actionable RuntimeError")
+
+    assert path.read_bytes() == original
+    assert list(tmp_path.glob("corrupt.before-migration-*.db.bak"))
+
+
 def test_backup_is_created_for_unversioned_existing_database(tmp_path):
     path = tmp_path / "legacy.db"
     conn = sqlite3.connect(path)

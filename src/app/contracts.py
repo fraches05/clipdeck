@@ -17,6 +17,7 @@ class UploadOutcome:
     status: str
     error: Optional[str] = None
     created_at: Optional[str] = None
+    caption: Optional[str] = None
 
 
 @dataclass(frozen=True)

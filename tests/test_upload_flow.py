@@ -66,6 +66,28 @@ def test_partial_results_are_recorded_and_retry_list_is_preserved(qapp):
         assert history[0].error == "quota"
 
 
+def test_stop_after_success_keeps_unattempted_accounts_for_retry(qapp):
+    with tempfile.TemporaryDirectory() as tmp:
+        db = Database(os.path.join(tmp, "stop.db"))
+        service = ClipForgeService(db)
+        page = UploadsPage(service)
+        page.video_path = os.path.join(tmp, "clip.mp4")
+        with open(page.video_path, "wb") as stream:
+            stream.write(b"video")
+        page.caption.setPlainText("#test")
+        page.last_job = (page.video_path, "#test")
+        page.thread = type("RunningThread", (), {"deleteLater": lambda self: None})()
+        page._active_usernames = ["one", "two", "three"]
+        page._account_done("one", True, "")
+        page._finished(1, 3, stopped=True)
+        page.thread = None
+        page._thread_closed()
+
+        assert page.failed == ["two", "three"]
+        assert page.last_job == (page.video_path, "#test")
+        assert not page.btn_retry.isHidden()
+
+
 def test_history_dialog_uses_service_and_clears_through_it(qapp):
     from src.ui.dialogs.upload_history import UploadHistoryDialog
 

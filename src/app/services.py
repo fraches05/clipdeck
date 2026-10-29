@@ -50,10 +50,18 @@ class ClipForgeService:
         tag = (default_tag or "default").strip() or "default"
         added = 0
         updated = 0
+        existing = {
+            str(row[1]).casefold(): row[1]
+            for row in self.db.get_accounts()
+            if row[1]
+        }
         for account in accounts:
-            existed = bool(self.db.get_account_by_username(account["username"]))
-            cookie_name = f"tiktok_session-{account['username']}.cookie"
-            self.db.save_account(account["username"], cookie_name, tag=tag)
+            username = account["username"]
+            canonical = existing.get(username.casefold(), username)
+            existed = canonical.casefold() in existing
+            cookie_name = f"tiktok_session-{canonical}.cookie"
+            self.db.save_account(canonical, cookie_name, tag=tag)
+            existing[canonical.casefold()] = canonical
             if existed:
                 updated += 1
             else:
@@ -80,6 +88,7 @@ class ClipForgeService:
             outcome.username,
             outcome.status,
             video_path=outcome.video_path,
+            caption=outcome.caption,
             error=outcome.error,
         )
 
@@ -91,8 +100,9 @@ class ClipForgeService:
                 status=status,
                 error=error,
                 created_at=created_at,
+                caption=caption,
             )
-            for username, video_path, _caption, status, error, created_at
+            for username, video_path, caption, status, error, created_at
             in self.db.get_upload_log(limit)
         ]
 

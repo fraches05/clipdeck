@@ -45,7 +45,7 @@ class _LineEmitter:
 class UploadThread(QThread):
     line = pyqtSignal(str)
     account_result = pyqtSignal(str, bool, str)
-    finished_all = pyqtSignal(int, int)
+    finished_all = pyqtSignal(int, int, bool)
 
     def __init__(self, video_path, caption, usernames, delay=0):
         super().__init__()
@@ -71,7 +71,7 @@ class UploadThread(QThread):
             from tiktok_uploader import tiktok
         except Exception as e:
             self.line.emit(f"Не удалось загрузить модуль загрузки: {e}")
-            self.finished_all.emit(0, len(self.usernames))
+            self.finished_all.emit(0, len(self.usernames), bool(self.stop_requested))
             return
 
         total = len(self.usernames)
@@ -110,7 +110,7 @@ class UploadThread(QThread):
                 self.line.emit(f"    Пауза {self.delay} с перед следующим аккаунтом")
                 self._sleep(self.delay)
 
-        self.finished_all.emit(done, total)
+        self.finished_all.emit(done, total, bool(self.stop_requested))
 
 
 class UploadsPage(QWidget):
@@ -124,6 +124,7 @@ class UploadsPage(QWidget):
         self.thread = None
         self.failed = []
         self.last_job = None
+        self._active_usernames = []
         self._last_status = None
         self.setAcceptDrops(True)
         self._build()
@@ -358,6 +359,7 @@ class UploadsPage(QWidget):
             return
 
         self.failed = []
+        self._active_usernames = list(targets)
         self.last_job = (self.video_path, caption)
         self._last_status = None
         self.db.save_video(self.video_path, caption[:100], caption)
@@ -411,19 +413,28 @@ class UploadsPage(QWidget):
                 video_path=self.video_path or "",
                 status="ok" if ok else "error",
                 error=error or None,
+                caption=self.caption.toPlainText().strip(),
             )
         )
+        if username in self._active_usernames:
+            self._active_usernames.remove(username)
         if not ok:
             self.failed.append(username)
         self.progress.setValue(self.progress.value() + 1)
         self.status.setText(f"Загрузка идёт: {self.progress.value()} из {self.progress.maximum()}")
         self.accounts_changed.emit()
 
-    def _finished(self, done, total):
+    def _finished(self, done, total, stopped=False):
         self.btn_stop.setVisible(False)
         self.progress.setVisible(False)
+        if stopped:
+            for username in self._active_usernames:
+                if username not in self.failed:
+                    self.failed.append(username)
         self._log("")
         self._log(f"Готово: опубликовано {done} из {total}")
+        if stopped:
+            self._log("Остановлено пользователем; непройденные аккаунты можно повторить")
         if self.failed:
             self._log(f"Не удалось: {', '.join('@' + name for name in self.failed)}")
         self._last_status = (f"Опубликовано {done} из {total}",
@@ -442,4 +453,5 @@ class UploadsPage(QWidget):
             set_role(self.video_label, "muted")
             self.caption.clear()
             self.last_job = None
+        self._active_usernames = []
         self._update_state()
