@@ -17,7 +17,7 @@ from src.core.app import Application
 
 def selftest():
     import shutil
-    lines = []
+    lines = ["ClipForge self-test"]
     for name in ("PyQt6.QtWidgets", "requests", "tiktok_uploader.tiktok", "tiktok_uploader.stats",
                  "undetected_chromedriver", "fake_useragent"):
         try:
@@ -48,7 +48,7 @@ def selftest():
         from src.core.database import Database
         db = Database()
         db.set("selftest", "1")
-        lines.append(f"ok  база данных {app_dir() / 'data' / 'tiktok.db'}")
+        lines.append(f"ok  database {app_dir() / 'data' / 'tiktok.db'}")
     except Exception as e:
         lines.append(f"ERR база данных: {e!r}")
 
