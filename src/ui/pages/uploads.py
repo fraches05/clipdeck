@@ -2,12 +2,13 @@ import contextlib
 import os
 import sys
 import time
+from pathlib import Path
 
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFileDialog, QPlainTextEdit,
-                             QComboBox, QProgressBar)
+                             QComboBox, QProgressBar, QCheckBox)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 
-from src.app.contracts import UploadOutcome
+from src.app.contracts import RandomizerSettings, UploadOutcome
 from src.app.services import (
     ClipForgeService,
     MAX_VIDEO_BYTES,
@@ -15,6 +16,7 @@ from src.app.services import (
     validate_video_file,
 )
 from src.core.paths import app_dir
+from src.core.video_randomizer import RandomizerError, clear_variants, randomize_video, resolve_ffmpeg, variant_filename
 from src.ui.components.common import PageHeader, make_button, make_label, make_divider, set_role, plural
 from src.ui.dialogs.styled_dialogs import show_warning
 from src.ui.dialogs.upload_history import UploadHistoryDialog
@@ -47,12 +49,14 @@ class UploadThread(QThread):
     account_result = pyqtSignal(str, bool, str)
     finished_all = pyqtSignal(int, int, bool)
 
-    def __init__(self, video_path, caption, usernames, delay=0):
+    def __init__(self, video_path, caption, usernames, delay=0, variant_settings=None, variant_dir=None):
         super().__init__()
         self.video_path = video_path
         self.caption = caption
         self.usernames = usernames
         self.delay = max(0, int(delay or 0))
+        self.variant_settings = variant_settings
+        self.variant_dir = Path(variant_dir) if variant_dir else None
         self.stop_requested = False
 
     def _sleep(self, seconds):
@@ -66,7 +70,6 @@ class UploadThread(QThread):
     def run(self):
         if str(PROJECT_DIR) not in sys.path:
             sys.path.insert(0, str(PROJECT_DIR))
-        done = 0
         try:
             from tiktok_uploader import tiktok
         except Exception as e:
@@ -74,43 +77,75 @@ class UploadThread(QThread):
             self.finished_all.emit(0, len(self.usernames), bool(self.stop_requested))
             return
 
+        variant_dir = self.variant_dir or (PROJECT_DIR / "data" / "variants" / f"run-{int(time.time() * 1000)}")
         total = len(self.usernames)
-        for index, username in enumerate(self.usernames, 1):
-            if self.stop_requested:
-                self.line.emit("Остановлено пользователем")
-                break
-            self.line.emit(f"[{index}/{total}] @{username}")
-            emitter = _LineEmitter(lambda text: self.line.emit("    " + text))
-            ok = False
-            error = ""
-            try:
-                with contextlib.redirect_stdout(emitter):
-                    result = tiktok.upload_video(
-                        session_user=username,
-                        video=self.video_path,
-                        title=self.caption,
-                        proxy=os.environ.get("TIKTOK_PROXY") or None,
-                    )
-                ok = result is not False
-                if not ok:
-                    error = "TikTok не принял публикацию"
-            except (Exception, SystemExit) as e:
-                error = str(e) or type(e).__name__
-            finally:
-                emitter.flush()
+        done = 0
+        try:
+            for index, username in enumerate(self.usernames, 1):
+                if self.stop_requested:
+                    self.line.emit("Остановлено пользователем")
+                    break
+                self.line.emit(f"[{index}/{total}] @{username}")
+                target = self.video_path
+                if self.variant_settings is not None:
+                    try:
+                        variant_dir.mkdir(parents=True, exist_ok=True)
+                        self.line.emit("    Готовлю уникальную версию")
+                        variant = randomize_video(
+                            self.video_path,
+                            str(variant_dir / variant_filename(self.video_path, index, username)),
+                            self.variant_settings,
+                        )
+                        target = variant.path
+                        self.line.emit(
+                            f"    Вариант: {Path(target).name} · контраст {variant.contrast} · "
+                            f"яркость {variant.brightness} · шум {variant.noise} · CRF {variant.crf}"
+                        )
+                    except RandomizerError as e:
+                        error = str(e) or type(e).__name__
+                        self.line.emit(f"    Ошибка уникализации: {error}")
+                        self.account_result.emit(username, False, error)
+                        if index < total and self.delay and not self.stop_requested:
+                            self._sleep(self.delay)
+                        continue
+                if self.stop_requested:
+                    self.line.emit("Остановлено пользователем")
+                    break
 
-            if ok:
-                done += 1
-                self.line.emit("    Опубликовано")
-            else:
-                self.line.emit(f"    Ошибка: {error}")
-            self.account_result.emit(username, ok, error)
+                emitter = _LineEmitter(lambda text: self.line.emit("    " + text))
+                ok = False
+                error = ""
+                try:
+                    with contextlib.redirect_stdout(emitter):
+                        result = tiktok.upload_video(
+                            session_user=username,
+                            video=target,
+                            title=self.caption,
+                            proxy=os.environ.get("TIKTOK_PROXY") or None,
+                        )
+                    ok = result is not False
+                    if not ok:
+                        error = "TikTok не принял публикацию"
+                except (Exception, SystemExit) as e:
+                    error = str(e) or type(e).__name__
+                finally:
+                    emitter.flush()
 
-            if index < total and self.delay and not self.stop_requested:
-                self.line.emit(f"    Пауза {self.delay} с перед следующим аккаунтом")
-                self._sleep(self.delay)
+                if ok:
+                    done += 1
+                    self.line.emit("    Опубликовано")
+                else:
+                    self.line.emit(f"    Ошибка: {error}")
+                self.account_result.emit(username, ok, error)
 
-        self.finished_all.emit(done, total, bool(self.stop_requested))
+                if index < total and self.delay and not self.stop_requested:
+                    self.line.emit(f"    Пауза {self.delay} с перед следующим аккаунтом")
+                    self._sleep(self.delay)
+
+            self.finished_all.emit(done, total, bool(self.stop_requested))
+        finally:
+            if self.variant_dir is None:
+                clear_variants(variant_dir)
 
 
 class UploadsPage(QWidget):
@@ -171,6 +206,27 @@ class UploadsPage(QWidget):
         self.group = QComboBox()
         self.group.currentIndexChanged.connect(self._update_state)
         form.addWidget(self.group)
+        form.addSpacing(10)
+
+        variant_row = QHBoxLayout()
+        variant_row.setSpacing(10)
+        self.chk_variants = QCheckBox("Разные версии видео для каждого аккаунта")
+        self.chk_variants.setChecked(bool(self.db.get("randomize_variants", False)))
+        self.chk_variants.toggled.connect(self._on_variants_toggled)
+        variant_row.addWidget(self.chk_variants)
+        self.variant_intensity = QComboBox()
+        for label, code in (("Лёгкая", "light"), ("Средняя", "medium"),
+                            ("Сильная", "strong"), ("Случайная", "random")):
+            self.variant_intensity.addItem(label, code)
+        saved_intensity = str(self.db.get("randomize_intensity", "medium") or "medium")
+        self.variant_intensity.setCurrentIndex(max(0, self.variant_intensity.findData(saved_intensity)))
+        self.variant_intensity.currentIndexChanged.connect(self._on_intensity_changed)
+        variant_row.addWidget(self.variant_intensity)
+        variant_row.addStretch()
+        form.addLayout(variant_row)
+        hint = make_label("FFmpeg меняет контраст, яркость, шум и сжатие у копии для каждого аккаунта.", "caption")
+        hint.setWordWrap(True)
+        form.addWidget(hint)
 
         form_wrap = QWidget()
         form_wrap.setLayout(form)
@@ -304,6 +360,13 @@ class UploadsPage(QWidget):
     def _busy(self):
         return self.thread is not None
 
+    def _on_variants_toggled(self, checked):
+        self.db.set("randomize_variants", bool(checked))
+        self._update_state()
+
+    def _on_intensity_changed(self, _index):
+        self.db.set("randomize_intensity", self.variant_intensity.currentData() or "medium")
+
     def _update_state(self):
         busy = self._busy()
         caption = self.caption.toPlainText().strip()
@@ -311,6 +374,8 @@ class UploadsPage(QWidget):
         self.btn_start.setEnabled(ready and not busy)
         self.btn_video.setEnabled(not busy)
         self.group.setEnabled(not busy)
+        self.chk_variants.setEnabled(not busy)
+        self.variant_intensity.setEnabled(not busy and self.chk_variants.isChecked())
         self.caption.setReadOnly(busy)
         self.btn_retry.setVisible(bool(self.failed) and not busy)
         if busy:
@@ -358,6 +423,16 @@ class UploadsPage(QWidget):
             show_warning(self, "Файл недоступен", f"{validation.detail}. Выберите файл заново.")
             return
 
+        variant_settings = None
+        if self.chk_variants.isChecked():
+            if not resolve_ffmpeg():
+                show_warning(
+                    self, "Нужен FFmpeg",
+                    "Для уникализации видео нужен FFmpeg.\n"
+                    "Установите его и добавьте в PATH или положите ffmpeg.exe в папку ffmpeg\\bin рядом с программой.")
+                return
+            variant_settings = RandomizerSettings(intensity=self.variant_intensity.currentData() or "medium")
+
         self.failed = []
         self._active_usernames = list(targets)
         self.last_job = (self.video_path, caption)
@@ -371,10 +446,12 @@ class UploadsPage(QWidget):
         delay = int(self.db.get("upload_delay", 0) or 0)
         if delay:
             self._log(f"Пауза между аккаунтами: {delay} с")
+        if variant_settings is not None:
+            self._log(f"Уникализация: включена ({self.variant_intensity.currentText().lower()})")
         self._log(f"Аккаунтов в очереди: {len(targets)}")
         self._log("")
 
-        self.thread = UploadThread(self.video_path, caption, targets, delay)
+        self.thread = UploadThread(self.video_path, caption, targets, delay, variant_settings=variant_settings)
         self.thread.line.connect(self._log)
         self.thread.account_result.connect(self._account_done)
         self.thread.finished_all.connect(self._finished)

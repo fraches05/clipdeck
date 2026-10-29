@@ -88,6 +88,10 @@ class DiagnosticsThread(QThread):
             except Exception:
                 lines.append(f"{title}: пакет {module} не установлен")
 
+        from src.core.video_randomizer import resolve_ffmpeg
+        ffmpeg = resolve_ffmpeg()
+        lines.append(f"FFmpeg: {ffmpeg}" if ffmpeg else "FFmpeg: НЕ НАЙДЕН — уникализация видео недоступна")
+
         cookies = app_dir() / "CookiesDir"
         count = len(list(cookies.glob("*.cookie"))) if cookies.exists() else 0
         lines.append(f"Файлов куков: {count}")

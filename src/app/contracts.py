@@ -57,3 +57,23 @@ class DiagnosticResult:
     name: str
     status: str
     detail: str
+
+
+@dataclass(frozen=True)
+class RandomizerSettings:
+    intensity: str = "medium"
+    keep_audio: bool = True
+    noise: Optional[int] = None
+    crf: Optional[int] = None
+
+
+@dataclass(frozen=True)
+class VideoVariant:
+    account: str
+    source: str
+    path: str
+    contrast: float
+    brightness: float
+    noise: int
+    crf: int
+    size: int

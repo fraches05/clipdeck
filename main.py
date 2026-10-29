@@ -45,6 +45,13 @@ def selftest():
         lines.append(f"ERR chrome: {e!r}")
 
     try:
+        from src.core.video_randomizer import resolve_ffmpeg
+        binary = resolve_ffmpeg()
+        lines.append(f"{'ok ' if binary else 'ERR'} ffmpeg {binary or 'не найден'}")
+    except Exception as e:
+        lines.append(f"ERR ffmpeg: {e!r}")
+
+    try:
         from src.core.database import Database
         db = Database()
         db.set("selftest", "1")

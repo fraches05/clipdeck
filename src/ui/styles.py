@@ -84,6 +84,18 @@ QPushButton#nav[active="true"] {{
     font-weight: 600;
 }}
 
+QCheckBox {{ spacing: 8px; }}
+QCheckBox::indicator {{
+    width: 16px;
+    height: 16px;
+    border: 1px solid {BORDER_STRONG};
+    border-radius: 4px;
+    background: {SURFACE};
+}}
+QCheckBox::indicator:hover {{ border-color: {ACCENT}; }}
+QCheckBox::indicator:checked {{ background: {ACCENT}; border-color: {ACCENT}; }}
+QCheckBox:disabled {{ color: {FAINT}; }}
+
 QLineEdit, QTextEdit, QPlainTextEdit, QComboBox, QSpinBox {{
     background: {SURFACE};
     border: 1px solid {BORDER};

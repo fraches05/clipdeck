@@ -7,6 +7,7 @@ ClipForge is a Windows desktop application built with Python, PyQt6 and SQLite. 
 - `src/ui/` contains pages, dialogs and reusable widgets. Pages keep user interaction and presentation logic.
 - `src/app/` contains typed contracts and `ClipForgeService`, the application facade used by pages for validation, account groups, publication history and diagnostics.
 - `src/core/` contains the local database, cookie storage, statistics store and compatibility-oriented infrastructure.
+- `src/core/video_randomizer.py` builds per-account video variants with FFmpeg: it picks randomized contrast, brightness, noise and CRF values, runs the encoder in a temporary folder under `data/variants/` and removes it after the run. It has no PyQt6 or TikTok dependency, so it is testable on its own.
 - `tiktok_uploader/` remains an isolated integration adapter for the unofficial TikTok operations and the existing Node signer.
 
 ## Data and compatibility

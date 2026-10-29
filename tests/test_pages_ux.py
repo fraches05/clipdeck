@@ -13,6 +13,7 @@ from src.core.database import Database
 from src.ui.pages.accounts import AccountsPage
 from src.ui.pages.settings import SettingsPage
 from src.ui.pages.stats import StatsPage
+from src.ui.pages.uploads import UploadsPage
 
 
 def _labels(page):
@@ -51,3 +52,18 @@ def test_settings_page_uses_shared_database_and_clipforge_copy(qapp):
         assert page.db is service.db
         assert page.windowTitle() == ""
         assert "Публикация" in _labels(page)
+
+
+def test_uploads_page_persists_variant_toggle(qapp):
+    with tempfile.TemporaryDirectory() as tmp:
+        service = ClipForgeService(Database(os.path.join(tmp, "uploads.db")))
+        page = UploadsPage(service)
+        assert page.chk_variants.isChecked() is False
+        assert page.variant_intensity.isEnabled() is False
+
+        page.chk_variants.setChecked(True)
+        assert service.db.get("randomize_variants") is True
+        assert page.variant_intensity.isEnabled() is True
+
+        page.variant_intensity.setCurrentIndex(page.variant_intensity.findData("strong"))
+        assert service.db.get("randomize_intensity") == "strong"

@@ -11,7 +11,11 @@ $env:QT_QPA_PLATFORM='offscreen'; .venv\Scripts\python tests\smoke_gui.py
 .venv\Scripts\python main.py --selftest
 ```
 
-The self-test writes `selftest.log` beside the application data and reports Python packages, the Node signer, Node.js, Chrome, and the local database.
+The self-test writes `selftest.log` beside the application data and reports Python packages, the Node signer, Node.js, Chrome, FFmpeg and the local database.
+
+## FFmpeg
+
+The executable is not bundled. Video randomization is available when `ffmpeg.exe` is in `PATH`, in `ffmpeg\bin\` next to `ClipForge.exe`, or is pointed to by `CLIPFORGE_FFMPEG`. Without it the application still runs and the diagnostics in «Настройки» report the missing binary.
 
 ## Windows executable
 

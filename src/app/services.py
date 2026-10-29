@@ -15,6 +15,7 @@ from src.app.contracts import (
 from src.core.account_import import parse_accounts
 from src.core.database import Database
 from src.core.paths import app_dir
+from src.core.video_randomizer import resolve_ffmpeg
 
 VIDEO_EXTENSIONS = (".mp4", ".mov", ".m4v", ".webm")
 MAX_VIDEO_BYTES = 4 * 1024 ** 3
@@ -130,6 +131,12 @@ class ClipForgeService:
                 results.append(DiagnosticResult(label, "ok", "пакет установлен"))
             except Exception:
                 results.append(DiagnosticResult(label, "warning", f"пакет {module} не установлен"))
+
+        ffmpeg = resolve_ffmpeg()
+        if ffmpeg:
+            results.append(DiagnosticResult("FFmpeg", "ok", ffmpeg))
+        else:
+            results.append(DiagnosticResult("FFmpeg", "warning", "не найден — уникализация видео недоступна"))
 
         cookies = app_dir() / "CookiesDir"
         count = len(list(cookies.glob("*.cookie"))) if cookies.exists() else 0
